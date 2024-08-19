@@ -1,3 +1,6 @@
+const _ = require("lodash");
+const { blogs } = require("../tests/blogs");
+
 const dummy = (blogs) => {
   return 1;
 };
@@ -24,8 +27,34 @@ const favoriteBlog = (blogs) => {
   };
 };
 
+const mostBlogs = (blogs) => {
+  const topAuthor = _.maxBy(
+    _.entries(_.countBy(blogs, "author")),
+    ([_, count]) => count
+  );
+
+  return { author: topAuthor[0], blogs: topAuthor[1] };
+};
+
+const mostLikes = (blogs) => {
+  return _.maxBy(
+    _.map(_.groupBy(blogs, "author"), (array, key) => {
+      return array.reduce(
+        (accum, currItem) => {
+          accum.likes += currItem.likes;
+          return accum;
+        },
+        { author: key, likes: 0 }
+      );
+    }),
+    "likes"
+  );
+};
+
 module.exports = {
   dummy,
   totalLikes,
   favoriteBlog,
+  mostBlogs,
+  mostLikes,
 };
