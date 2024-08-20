@@ -3,7 +3,7 @@ const assert = require("node:assert");
 
 const listHelper = require("../utils/list_helper");
 
-const { listWithOneBlog, dummyBlogs } = require("./blogs");
+const { listWithOneBlog, dummyBlogs } = require("./blogsArr");
 
 describe("total likes", () => {
   test("when list has one blog, equals the likes of that", () => {

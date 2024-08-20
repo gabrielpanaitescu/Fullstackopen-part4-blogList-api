@@ -4,7 +4,7 @@ const assert = require("node:assert");
 
 const listHelper = require("../utils/list_helper");
 
-const { dummyBlogs } = require("./blogs");
+const { dummyBlogs } = require("./blogsArr");
 
 describe("most likes", () => {
   test("return the author with highest numbers of summed up likes", () => {
