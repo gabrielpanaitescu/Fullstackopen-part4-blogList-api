@@ -4,11 +4,11 @@ const assert = require("node:assert");
 
 const listHelper = require("../utils/list_helper");
 
-const { blogs } = require("./blogs");
+const { dummyBlogs } = require("./blogs");
 
 describe("most likes", () => {
   test("return the author with highest numbers of summed up likes", () => {
-    const result = listHelper.mostLikes(blogs);
+    const result = listHelper.mostLikes(dummyBlogs);
 
     assert.deepStrictEqual(result, {
       author: "Edsger W. Dijkstra",

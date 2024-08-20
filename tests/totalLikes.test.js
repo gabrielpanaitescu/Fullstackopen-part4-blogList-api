@@ -3,7 +3,7 @@ const assert = require("node:assert");
 
 const listHelper = require("../utils/list_helper");
 
-const { listWithOneBlog, blogs } = require("./blogs");
+const { listWithOneBlog, dummyBlogs } = require("./blogs");
 
 describe("total likes", () => {
   test("when list has one blog, equals the likes of that", () => {
@@ -13,7 +13,7 @@ describe("total likes", () => {
   });
 
   test("when list has more than one blog, total likes is calculated right", () => {
-    const result = listHelper.totalLikes(blogs);
+    const result = listHelper.totalLikes(dummyBlogs);
 
     assert.strictEqual(result, 36);
   });
@@ -21,7 +21,7 @@ describe("total likes", () => {
 
 describe("favorite blog", () => {
   test("return the blog with the most number of likes", () => {
-    const result = listHelper.favoriteBlog(blogs);
+    const result = listHelper.favoriteBlog(dummyBlogs);
 
     assert.deepStrictEqual(result, {
       title: "Canonical string reduction",
