@@ -58,8 +58,8 @@ test("a valid blog can be added", async () => {
 
 test("if likes property of blog obj is missing, it will default to 0", async () => {
   const newBlog = {
-    title: "Blog without likes property",
-    author: "Nolikes Asd",
+    title: "Blog without likes",
+    author: "No likes",
     url: "http://www.nolikes.asd",
   };
 
@@ -70,6 +70,26 @@ test("if likes property of blog obj is missing, it will default to 0", async () 
     .expect("Content-Type", /application\/json/);
 
   assert.strictEqual(response.body.likes, 0);
+});
+
+test("if title property of blog obj is missing, response status code will be 400", async () => {
+  const newBlog = {
+    author: "No title",
+    url: "http://www.notitle.asd",
+    likes: 7,
+  };
+
+  const response = await api.post("/api/blogs").send(newBlog).expect(400);
+});
+
+test("if url property of blog obj is missing, response status code will be 400", async () => {
+  const newBlog = {
+    title: "No url",
+    author: "No url",
+    likes: 7,
+  };
+
+  const response = await api.post("/api/blogs").send(newBlog).expect(400);
 });
 
 after(async () => {
