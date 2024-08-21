@@ -1,0 +1,9 @@
+PUT http://localhost:3003/api/blogs/66c5ffa3e1879817f1828859
+Content-Type: application/json
+
+{
+    "likes": 10
+}
+
+//existing id 66c101352fa18a68eb9fb78b
+//non existing id 66c5f7178ac467eaff417e64

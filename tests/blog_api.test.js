@@ -58,7 +58,7 @@ describe("when there is initially some blogs saved", () => {
       assert(titles.includes(newBlog.title));
     });
 
-    test("fails if likes property is missing and it will default to 0", async () => {
+    test("likes property defaults to 0 if missing", async () => {
       const newBlog = {
         title: "Blog without likes",
         author: "No likes",
@@ -99,8 +99,6 @@ describe("when there is initially some blogs saved", () => {
         const blogsAtStart = await helper.blogsInDb();
         const blogToDelete = blogsAtStart[0];
 
-        console.log(blogToDelete.id);
-
         await api.delete(`/api/blogs/${blogToDelete.id}`).expect(204);
 
         const blogsAtEnd = await helper.blogsInDb();
@@ -109,6 +107,56 @@ describe("when there is initially some blogs saved", () => {
 
         const titles = blogsAtEnd.map((blog) => blog.title);
         assert(!titles.includes(blogToDelete.title));
+      });
+
+      test("fails with status code 404 if note id does not exist", async () => {
+        const validNonexistingId = await helper.nonExistingId();
+        await api.delete(`/api/blogs/${validNonexistingId}`).expect(404);
+      });
+
+      test("fails with status code 400 if id is invalid", async () => {
+        await api.put("/api/blogs/invalidId").expect(400);
+      });
+    });
+
+    describe("updating a blog", () => {
+      test("succeeds and updates likes if id is valid", async () => {
+        const blogsAtStart = await helper.blogsInDb();
+        const blogToUpdate = blogsAtStart[0];
+
+        await api
+          .put(`/api/blogs/${blogToUpdate.id}`)
+          .send({
+            ...blogToUpdate,
+            likes: blogToUpdate.likes + 1,
+          })
+          .expect(200)
+          .expect("Content-Type", /application\/json/);
+
+        const blogsAtEnd = await helper.blogsInDb();
+
+        const updatedBlog = blogsAtEnd.find(
+          (blog) => blog.id === blogToUpdate.id
+        );
+
+        assert.strictEqual(updatedBlog.likes, blogToUpdate.likes + 1);
+      });
+
+      test("fails with status code 404 if note id does not exist", async () => {
+        const validNonexistingId = await helper.nonExistingId();
+        const dummyBlog = initialBlogs[0];
+        await api
+          .put(`/api/blogs/${validNonexistingId}`)
+          .send({ ...dummyBlog, likes: dummyBlog.likes + 1 })
+          .expect(404);
+      });
+
+      test("fails with status code 400 if id is invalid", async () => {
+        const dummyBlog = initialBlogs[0];
+        await api
+          .put("/api/blogs/invalidId")
+          .send({ ...dummyBlog, likes: dummyBlog.likes + 1 })
+          .expect(400);
       });
     });
   });

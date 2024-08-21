@@ -1,0 +1,5 @@
+GET http://localhost:3003/api/blogs/66c101352fa18a68eb9fb78b
+
+
+//existing id 66c101352fa18a68eb9fb78b
+//non existing id 66c5f7178ac467eaff417e64
