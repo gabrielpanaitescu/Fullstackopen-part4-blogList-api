@@ -11,8 +11,6 @@ blogsRouter.get("/", async (request, response) => {
 blogsRouter.post("/", async (request, response) => {
   const body = request.body;
 
-  console.log(request.token);
-
   const decodedToken = jwt.verify(request.token, process.env.SECRET);
 
   if (!decodedToken.id)
@@ -36,10 +34,22 @@ blogsRouter.post("/", async (request, response) => {
 });
 
 blogsRouter.delete("/:id", async (request, response) => {
-  const result = await Blog.findByIdAndDelete(request.params.id);
+  const decodedToken = jwt.verify(request.token, process.env.SECRET);
 
-  if (!result)
-    return response.status(404).json({ error: "resource not found" });
+  if (!decodedToken.id)
+    return response.status(401).json({ error: "token invalid" });
+
+  const blog = await Blog.findById(request.params.id);
+
+  if (!blog) return response.status(404).json({ error: "resource not found" });
+
+  if (blog.user.toString() !== decodedToken.id) {
+    return response
+      .status(400)
+      .json({ error: "target note belongs to another user" });
+  }
+
+  await blog.deleteOne();
 
   response.status(204).end();
 });
