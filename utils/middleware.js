@@ -28,12 +28,23 @@ const errorHandler = (error, request, response, next) => {
       .json({ error: "expected `username` to be unique" });
   } else if (error.name === "JsonWebTokenError") {
     return response.status(401).json({ error: "token missing or invalid" });
+  } else if (error.name === "TokenExpiredError") {
+    return response.status(401).json({ error: "token expired" });
   }
   next(error);
+};
+
+const extractToken = (request, response, next) => {
+  const authorization = request.headers.authorization;
+  if (authorization && authorization.startsWith("Bearer")) {
+    request.token = authorization.replace("Bearer ", "");
+  }
+  next();
 };
 
 module.exports = {
   unknownEndpoint,
   requestLogger,
   errorHandler,
+  extractToken,
 };
