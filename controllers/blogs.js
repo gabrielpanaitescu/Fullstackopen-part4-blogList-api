@@ -34,8 +34,9 @@ blogsRouter.delete(
   middleware.userExtractor,
   async (request, response) => {
     const user = request.user;
+    const blogId = request.params.id;
 
-    const blog = await Blog.findById(request.params.id);
+    const blog = await Blog.findById(blogId);
 
     if (!blog)
       return response.status(404).json({ error: "resource not found" });
@@ -46,7 +47,16 @@ blogsRouter.delete(
         .json({ error: "target blog belongs to another user" });
     }
 
-    await blog.deleteOne();
+    const deletedBlog = await Blog.findByIdAndDelete(blogId);
+
+    if (!deletedBlog)
+      return response.status(404).json({ error: "resource not found" });
+
+    await User.findByIdAndUpdate(
+      user._id,
+      { $pull: { blogs: blogId } },
+      { new: true }
+    );
 
     response.status(204).end();
   }
