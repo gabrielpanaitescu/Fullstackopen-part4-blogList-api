@@ -25,7 +25,13 @@ blogsRouter.post("/", middleware.userExtractor, async (request, response) => {
 
   user.blogs = user.blogs.concat(savedBlog._id);
   await user.save();
-  response.status(201).json(savedBlog);
+
+  const blogToReturn = await Blog.findById(savedBlog._id).populate("user", {
+    username: 1,
+    name: 1,
+  });
+
+  response.status(201).json(blogToReturn);
 });
 
 blogsRouter.delete(
@@ -74,15 +80,16 @@ blogsRouter.put("/:id", middleware.userExtractor, async (request, response) => {
     user: body.user,
   };
 
-  if (blog.user !== user._id.toString()) {
-    return response.status(400).json({
-      error: "target blog's user is missing or blog belongs to another user",
-    });
-  }
+  // this makes the likes button usable only if the blog creator and logged user are equal
+  // if (blog.user !== user._id.toString()) {
+  //   return response.status(400).json({
+  //     error: "target blog's user is missing or blog belongs to another user",
+  //   });
+  // }
 
   const updatedBlog = await Blog.findByIdAndUpdate(blogId, blog, {
     new: true,
-  });
+  }).populate("user", { username: 1, name: 1 });
 
   if (!updatedBlog)
     return response.status(404).json({ error: "resource not found" });
