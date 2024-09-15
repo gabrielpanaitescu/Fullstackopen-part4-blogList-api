@@ -18,7 +18,6 @@ blogsRouter.post("/", middleware.userExtractor, async (request, response) => {
     title: body.title,
     author: body.author,
     url: body.url,
-    likes: body.likes,
     user: user._id,
   });
 
@@ -62,17 +61,26 @@ blogsRouter.delete(
   }
 );
 
-blogsRouter.put("/:id", async (request, response) => {
+blogsRouter.put("/:id", middleware.userExtractor, async (request, response) => {
   const body = request.body;
+  const blogId = request.params.id;
+  const user = request.user;
 
   const blog = {
     title: body.title,
     author: body.author,
     url: body.url,
     likes: body.likes,
+    user: body.user,
   };
 
-  const updatedBlog = await Blog.findByIdAndUpdate(request.params.id, blog, {
+  if (blog.user !== user._id.toString()) {
+    return response.status(400).json({
+      error: "target blog's user is missing or blog belongs to another user",
+    });
+  }
+
+  const updatedBlog = await Blog.findByIdAndUpdate(blogId, blog, {
     new: true,
   });
 
