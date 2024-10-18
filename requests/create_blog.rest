@@ -1,10 +1,9 @@
 POST http://localhost:3003/api/blogs
 Content-Type: application/json
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6ImpvaG5fZG9lMTIzIiwiaWQiOiI2NmU3MTQzNTU0Nzg1YWRmN2U4MjQyMDgiLCJpYXQiOjE3MjY0MjAwMzQsImV4cCI6MTcyNjQyMzYzNH0.A_s2yKXwNf8mas1MV3_3Rbrciclv1_bcf1GgX_UMGzg
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6ImdhYnJpZWwxMjM0IiwiaWQiOiI2NzExNzRhOWQ4MGU4YTljZTE5ZTJjNTUiLCJpYXQiOjE3MjkxOTcyNDAsImV4cCI6MTcyOTIwMDg0MH0.ddxM35rFl480RI2HwkkL6QaHuKHfJjDTaP1Pmt3qFl8
 
 {
-    "title": "johns blog",
-    "author": "ASD",
-    "url": "http://haha.com/lmao",
-    "likes": 1
+    "title": "test3",
+    "author": "test",
+    "url": "http://haha.com/lmao"
 }
