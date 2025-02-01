@@ -27,6 +27,7 @@ const favoriteBlog = (blogs) => {
 };
 
 const mostBlogs = (blogs) => {
+  console.log(_.countBy(blogs, "author"));
   const topAuthor = _.maxBy(
     _.entries(_.countBy(blogs, "author")),
     ([_, count]) => count

@@ -22,6 +22,8 @@ blogsRouter.get("/:id", async (request, response) => {
   const id = request.params.id;
   const blog = await Blog.findById(id);
 
+  if (!blog) return response.status(404).send({ error: "blog not found" });
+
   response.json(blog);
 });
 
@@ -85,7 +87,7 @@ blogsRouter.put("/:id", middleware.userExtractor, async (request, response) => {
   const blogToUpdate = await Blog.findById(blogId);
 
   if (!blogToUpdate) {
-    return res.status(404).json({ error: "blog not found" });
+    return response.status(404).json({ error: "blog not found" });
   }
 
   const didUserAlreadyLiked = Boolean(

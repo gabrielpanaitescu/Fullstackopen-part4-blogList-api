@@ -30,3 +30,31 @@ describe("favorite blog", () => {
     });
   });
 });
+
+describe("most blogs", () => {
+  test("return the author with the most blogs", () => {
+    const result = listHelper.mostBlogs(dummyBlogs);
+
+    assert.deepStrictEqual(result, { author: "Robert C. Martin", blogs: 3 });
+  });
+});
+
+describe("most likes", () => {
+  test("return the author with highest numbers of summed up likes", () => {
+    const result = listHelper.mostLikes(dummyBlogs);
+
+    assert.deepStrictEqual(result, {
+      author: "Edsger W. Dijkstra",
+      likes: 17,
+    });
+  });
+});
+
+describe("dummy", () => {
+  test("dummy that returns 1", () => {
+    const blogs = [];
+
+    const result = listHelper.dummy(blogs);
+    assert.strictEqual(result, 1);
+  });
+});

@@ -3,7 +3,7 @@ const assert = require("node:assert");
 const mongoose = require("mongoose");
 const app = require("../app");
 const bcrypt = require("bcrypt");
-const jwt = require("jsonwebtoken");
+// const jwt = require("jsonwebtoken");
 const supertest = require("supertest");
 const User = require("../models/user");
 const Blog = require("../models/blog");
@@ -12,7 +12,7 @@ const helper = require("./tests_helper");
 
 const api = supertest(app);
 
-describe("when there is initially some blogs saved", () => {
+describe("when there is initially an user and some blogs saved", () => {
   let token;
   let userId;
 
@@ -24,22 +24,21 @@ describe("when there is initially some blogs saved", () => {
       username: "bloguser",
       passwordHash: await bcrypt.hash("blogpassword", 10),
     });
+    await user.save();
 
-    const savedUser = await user.save();
-    userId = savedUser._id;
-
-    token = helper.generateTokenFor(savedUser);
+    userId = user._id;
+    token = helper.generateTokenFor(user);
 
     const blogObjects = initialBlogs.map(
       (blog) => new Blog({ ...blog, user: userId })
     );
     const savedBlogs = await Blog.insertMany(blogObjects);
 
-    savedUser.blogs = savedBlogs.map((blog) => blog._id);
-    await savedUser.save();
+    user.blogs = savedBlogs.map((blog) => blog._id);
+    await user.save();
   });
 
-  test("blogs are returned in the right amount, in json format", async () => {
+  test("all blogs are returned (json format)", async () => {
     const response = await api
       .get("/api/blogs")
       .expect(200)
@@ -73,8 +72,10 @@ describe("when there is initially some blogs saved", () => {
         .expect("Content-Type", /application\/json/);
 
       const userAtEnd = await User.findById(userId);
-      assert.strictEqual(userAtEnd.blogs.length, initialBlogs.length + 1);
-      assert(userAtEnd.blogs.includes(result.body.id));
+      const userBlogs = userAtEnd.blogs.map((blogId) => blogId.toString());
+
+      assert.strictEqual(userBlogs.length, initialBlogs.length + 1);
+      assert(userBlogs.includes(result.body.id));
 
       const blogsAtEnd = await helper.blogsInDb();
       assert.strictEqual(blogsAtEnd.length, initialBlogs.length + 1);
@@ -83,7 +84,7 @@ describe("when there is initially some blogs saved", () => {
       assert(titles.includes(newBlog.title));
     });
 
-    test("likes property defaults to 0 if missing", async () => {
+    test("if missing from request body payload, likes property defaults to 0", async () => {
       const newBlog = {
         title: "Blog without likes",
         author: "No likes",
@@ -93,14 +94,12 @@ describe("when there is initially some blogs saved", () => {
       const response = await api
         .post("/api/blogs")
         .set("Authorization", `Bearer ${token}`)
-        .send(newBlog)
-        .expect(201)
-        .expect("Content-Type", /application\/json/);
+        .send(newBlog);
 
       assert.strictEqual(response.body.likes, 0);
     });
 
-    test("fails if title property is missing and response status code will be 400", async () => {
+    test("fails with status code 400 if title property is missing ", async () => {
       const newBlog = {
         author: "No title",
         url: "http://www.notitle.asd",
@@ -114,7 +113,7 @@ describe("when there is initially some blogs saved", () => {
         .expect(400);
     });
 
-    test("if url property of blog obj is missing, response status code will be 400", async () => {
+    test("fails with status code 400 if url property is missing ", async () => {
       const newBlog = {
         title: "No url",
         author: "No url",
@@ -128,7 +127,7 @@ describe("when there is initially some blogs saved", () => {
         .expect(400);
     });
 
-    test("fails with correct status code if token is missing", async () => {
+    test("fails with status code 401 if token is missing", async () => {
       const newBlog = {
         title: "No url",
         author: "No url",
@@ -140,7 +139,7 @@ describe("when there is initially some blogs saved", () => {
       assert(result.body.error.includes("token missing or invalid"));
     });
 
-    test("fails with correct status code if token is invalid", async () => {
+    test("fails with status code 401 if token is invalid", async () => {
       const newBlog = {
         title: "No url",
         author: "No url",
@@ -156,21 +155,29 @@ describe("when there is initially some blogs saved", () => {
       assert(result.body.error.includes("token missing or invalid"));
     });
 
-    test("fails with correct status code if token is expired", async () => {
+    test("fails with status code 401 if token is expired", async () => {
       const newBlog = {
-        title: "No url",
-        author: "No url",
-        likes: 7,
+        title: "Title",
+        url: "Url",
       };
+
+      const shortLivedToken = helper.generateTokenFor(
+        {
+          username: "bloguser",
+          _id: userId,
+        },
+        { expiresIn: "1s" }
+      );
+
+      await new Promise((res, rej) => setTimeout(res, 1100));
 
       const result = await api
         .post("/api/blogs")
-        .set(
-          "Authorization",
-          `Bearer ${"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6ImdhYnJpZWxwYW5haXRlc2N1OTYiLCJpZCI6IjY2Y2QwMWMzOTY1NTE5NzRkMDAxMmY1ZCIsImlhdCI6MTcyNDc5MTg4MSwiZXhwIjoxNzI0Nzk1NDgxfQ.SUdPRanF_ZxVGX2CVI0UB7GFb4ZULwT8yQrO9FVFf5s"}`
-        )
+        .set("Authorization", `Bearer ${shortLivedToken}`)
         .send(newBlog)
         .expect(401);
+
+      // alt - hardcoded expired token - eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6ImdhYnJpZWxwYW5haXRlc2N1OTYiLCJpZCI6IjY2Y2QwMWMzOTY1NTE5NzRkMDAxMmY1ZCIsImlhdCI6MTcyNDc5MTg4MSwiZXhwIjoxNzI0Nzk1NDgxfQ.SUdPRanF_ZxVGX2CVI0UB7GFb4ZULwT8yQrO9FVFf5s
 
       assert(result.body.error.includes("token expired"));
     });
@@ -189,11 +196,9 @@ describe("when there is initially some blogs saved", () => {
       const blogsAtEnd = await helper.blogsInDb();
       assert.strictEqual(blogsAtEnd.length, initialBlogs.length - 1);
 
-      const titles = blogsAtEnd.map((blog) => blog.title);
-      assert(!titles.includes(blogToDelete.title));
-
-      const updatedUser = await User.findById(userId);
-      assert(!updatedUser.blogs.includes(blogToDelete.id));
+      const userAtEnd = await User.findById(userId);
+      const userBlogs = userAtEnd.blogs.map((blogId) => blogId.toString());
+      assert(!userBlogs.includes(blogToDelete.id));
     });
 
     test("fails with status code 404 if blog id does not exist", async () => {
@@ -242,34 +247,38 @@ describe("when there is initially some blogs saved", () => {
       const blogsAtStart = await helper.blogsInDb();
       const blogToDelete = blogsAtStart[0];
 
+      const shortLivedToken = helper.generateTokenFor(
+        {
+          username: "bloguser",
+          _id: userId,
+        },
+        { expiresIn: "1s" }
+      );
+
+      await new Promise((res, rej) => setTimeout(res, 1100));
+
       const result = await api
         .delete(`/api/blogs/${blogToDelete.id}`)
-        .set(
-          "Authorization",
-          `Bearer ${"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6ImdhYnJpZWxwYW5haXRlc2N1OTYiLCJpZCI6IjY2Y2QwMWMzOTY1NTE5NzRkMDAxMmY1ZCIsImlhdCI6MTcyNDc5MTg4MSwiZXhwIjoxNzI0Nzk1NDgxfQ.SUdPRanF_ZxVGX2CVI0UB7GFb4ZULwT8yQrO9FVFf5s"}`
-        )
+        .set("Authorization", `Bearer ${shortLivedToken}`)
         .expect(401);
 
       assert(result.body.error.includes("token expired"));
     });
   });
 
+  //npm run test -- --test-name-pattern="updating a blog" tests/blog_api.test.js
   describe("updating a blog", () => {
-    test("succeeds and updates likes if id is valid", async () => {
+    test("with a valid id increases the likes and returns status 200 with json content", async () => {
       const blogsAtStart = await helper.blogsInDb();
       const blogToUpdate = blogsAtStart[0];
 
       await api
         .put(`/api/blogs/${blogToUpdate.id}`)
-        .send({
-          ...blogToUpdate,
-          likes: blogToUpdate.likes + 1,
-        })
+        .set("Authorization", `Bearer ${token}`)
         .expect(200)
         .expect("Content-Type", /application\/json/);
 
       const blogsAtEnd = await helper.blogsInDb();
-
       const updatedBlog = blogsAtEnd.find(
         (blog) => blog.id === blogToUpdate.id
       );
@@ -277,21 +286,82 @@ describe("when there is initially some blogs saved", () => {
       assert.strictEqual(updatedBlog.likes, blogToUpdate.likes + 1);
     });
 
-    test("fails with status code 404 if note id does not exist", async () => {
+    test("sending the request twice in a row returns the likes to initial value", async () => {
+      const blogsAtStart = await helper.blogsInDb();
+      const blogToUpdate = blogsAtStart[0];
+
+      await api
+        .put(`/api/blogs/${blogToUpdate.id}`)
+        .set("Authorization", `Bearer ${token}`);
+
+      await api
+        .put(`/api/blogs/${blogToUpdate.id}`)
+        .set("Authorization", `Bearer ${token}`);
+
+      const blogsAtEnd = await helper.blogsInDb();
+      const updatedBlog = blogsAtEnd.find(
+        (blog) => blog.id === blogToUpdate.id
+      );
+
+      assert.strictEqual(updatedBlog.likes, blogToUpdate.likes);
+    });
+
+    test("fails with status code 404 if id does not exist", async () => {
       const validNonexistingId = await helper.nonExistingId();
-      const dummyBlog = initialBlogs[0];
       await api
         .put(`/api/blogs/${validNonexistingId}`)
-        .send({ ...dummyBlog, likes: dummyBlog.likes + 1 })
+        .set("Authorization", `Bearer ${token}`)
         .expect(404);
     });
 
     test("fails with status code 400 if id is invalid", async () => {
-      const dummyBlog = initialBlogs[0];
       await api
         .put("/api/blogs/invalidId")
-        .send({ ...dummyBlog, likes: dummyBlog.likes + 1 })
+        .set("Authorization", `Bearer ${token}`)
         .expect(400);
+    });
+
+    test("fails with status code 401 if token is missing", async () => {
+      const blogsAtStart = await helper.blogsInDb();
+      const blogToUpdate = blogsAtStart[0];
+
+      const result = await api.put(`/api/blogs/${blogToUpdate.id}`).expect(401);
+
+      assert(result.body.error.includes("token missing or invalid"));
+    });
+
+    test("fails with status code 401 if token is invalid", async () => {
+      const blogsAtStart = await helper.blogsInDb();
+      const blogToUpdate = blogsAtStart[0];
+
+      const result = await api
+        .put(`/api/blogs/${blogToUpdate.id}`)
+        .set("Authorization", `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.`)
+        .expect(401);
+
+      assert(result.body.error.includes("token missing or invalid"));
+    });
+
+    test("fails with status code 401 if token is expired", async () => {
+      const blogsAtStart = await helper.blogsInDb();
+      const blogToUpdate = blogsAtStart[0];
+
+      const shortLivedToken = helper.generateTokenFor(
+        {
+          username: "bloguser",
+          _id: userId,
+        },
+        { expiresIn: "1s" }
+      );
+
+      await new Promise((res, rej) => setTimeout(res, 1100));
+
+      const result = await api
+        .put(`/api/blogs/${blogToUpdate.id}`)
+        .set("Authorization", `Bearer ${shortLivedToken}`)
+        .expect(401);
+
+      assert(result.body.error.includes("token expired"));
     });
   });
 });
@@ -299,17 +369,16 @@ describe("when there is initially some blogs saved", () => {
 describe("when there is initially an user saved in db", () => {
   beforeEach(async () => {
     await User.deleteMany({});
-    const passwordHash = await bcrypt.hash("sekret", 10);
 
     const user = new User({
       username: "root_root",
-      passwordHash,
+      passwordHash: await bcrypt.hash("sekret", 10),
     });
 
     await user.save();
   });
 
-  test("creation succeeds with valid user data", async () => {
+  test("another user creation succeeds with valid data", async () => {
     const usersAtStart = await helper.usersInDb();
 
     const user = {

@@ -12,7 +12,7 @@ const nonExistingId = async () => {
 
   await blog.save();
   await blog.deleteOne();
-  return blog.id.toString();
+  return blog._id.toString();
 };
 
 const blogsInDb = async () => {
@@ -25,13 +25,14 @@ const usersInDb = async () => {
   return users.map((user) => user.toJSON());
 };
 
-const generateTokenFor = (user) => {
+const generateTokenFor = (user, options) => {
   return jwt.sign(
     {
       username: user.username,
       id: user._id,
     },
-    process.env.SECRET
+    process.env.SECRET,
+    { expiresIn: options ? options.expiresIn : "10m" }
   );
 };
 
