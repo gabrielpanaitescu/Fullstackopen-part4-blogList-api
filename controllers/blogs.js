@@ -174,7 +174,7 @@ blogsRouter.delete(
     const blogToUpdate = await Blog.findById(blogId);
 
     if (!blogToUpdate) {
-      return res.status(404).json({ error: "blog not found" });
+      return response.status(404).json({ error: "blog not found" });
     }
 
     blogToUpdate.comments = blogToUpdate.comments.filter(
@@ -198,7 +198,7 @@ blogsRouter.put(
     const blogToUpdate = await Blog.findById(blogId);
 
     if (!blogToUpdate) {
-      return res.status(404).json({ error: "blog not found" });
+      return response.status(404).json({ error: "blog not found" });
     }
 
     const commentToEdit = blogToUpdate.comments.find(

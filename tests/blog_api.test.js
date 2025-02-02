@@ -3,7 +3,6 @@ const assert = require("node:assert");
 const mongoose = require("mongoose");
 const app = require("../app");
 const bcrypt = require("bcrypt");
-// const jwt = require("jsonwebtoken");
 const supertest = require("supertest");
 const User = require("../models/user");
 const Blog = require("../models/blog");
@@ -29,8 +28,16 @@ describe("when there is initially an user and some blogs saved", () => {
     userId = user._id;
     token = helper.generateTokenFor(user);
 
+    const addUserIdToComments = (comments) =>
+      comments.map((comment) => ({ ...comment, user: userId }));
+
     const blogObjects = initialBlogs.map(
-      (blog) => new Blog({ ...blog, user: userId })
+      (blog) =>
+        new Blog({
+          ...blog,
+          comments: addUserIdToComments(blog.comments),
+          user: userId,
+        })
     );
     const savedBlogs = await Blog.insertMany(blogObjects);
 
@@ -64,7 +71,7 @@ describe("when there is initially an user and some blogs saved", () => {
         likes: 12,
       };
 
-      const result = await api
+      const response = await api
         .post("/api/blogs")
         .set("Authorization", `Bearer ${token}`)
         .send(newBlog)
@@ -75,7 +82,7 @@ describe("when there is initially an user and some blogs saved", () => {
       const userBlogs = userAtEnd.blogs.map((blogId) => blogId.toString());
 
       assert.strictEqual(userBlogs.length, initialBlogs.length + 1);
-      assert(userBlogs.includes(result.body.id));
+      assert(userBlogs.includes(response.body.id));
 
       const blogsAtEnd = await helper.blogsInDb();
       assert.strictEqual(blogsAtEnd.length, initialBlogs.length + 1);
@@ -83,6 +90,8 @@ describe("when there is initially an user and some blogs saved", () => {
       const titles = blogsAtEnd.map((blog) => blog.title);
       assert(titles.includes(newBlog.title));
     });
+
+    // test("fails with status code 400 if title property ")
 
     test("if missing from request body payload, likes property defaults to 0", async () => {
       const newBlog = {
@@ -134,9 +143,9 @@ describe("when there is initially an user and some blogs saved", () => {
         likes: 7,
       };
 
-      const result = await api.post("/api/blogs").send(newBlog).expect(401);
+      const response = await api.post("/api/blogs").send(newBlog).expect(401);
 
-      assert(result.body.error.includes("token missing or invalid"));
+      assert(response.body.error.includes("token missing or invalid"));
     });
 
     test("fails with status code 401 if token is invalid", async () => {
@@ -146,13 +155,13 @@ describe("when there is initially an user and some blogs saved", () => {
         likes: 7,
       };
 
-      const result = await api
+      const response = await api
         .post("/api/blogs")
         .set("Authorization", `dsihjff342834m8439`)
         .send(newBlog)
         .expect(401);
 
-      assert(result.body.error.includes("token missing or invalid"));
+      assert(response.body.error.includes("token missing or invalid"));
     });
 
     test("fails with status code 401 if token is expired", async () => {
@@ -171,7 +180,7 @@ describe("when there is initially an user and some blogs saved", () => {
 
       await new Promise((res, rej) => setTimeout(res, 1100));
 
-      const result = await api
+      const response = await api
         .post("/api/blogs")
         .set("Authorization", `Bearer ${shortLivedToken}`)
         .send(newBlog)
@@ -179,7 +188,7 @@ describe("when there is initially an user and some blogs saved", () => {
 
       // alt - hardcoded expired token - eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6ImdhYnJpZWxwYW5haXRlc2N1OTYiLCJpZCI6IjY2Y2QwMWMzOTY1NTE5NzRkMDAxMmY1ZCIsImlhdCI6MTcyNDc5MTg4MSwiZXhwIjoxNzI0Nzk1NDgxfQ.SUdPRanF_ZxVGX2CVI0UB7GFb4ZULwT8yQrO9FVFf5s
 
-      assert(result.body.error.includes("token expired"));
+      assert(response.body.error.includes("token expired"));
     });
   });
 
@@ -203,44 +212,44 @@ describe("when there is initially an user and some blogs saved", () => {
 
     test("fails with status code 404 if blog id does not exist", async () => {
       const validNonexistingId = await helper.nonExistingId();
-      const result = await api
+      const response = await api
         .delete(`/api/blogs/${validNonexistingId}`)
         .set("Authorization", `Bearer ${token}`)
         .expect(404);
 
-      assert(result.body.error.includes("resource not found"));
+      assert(response.body.error.includes("resource not found"));
     });
 
     test("fails with status code 400 if id is invalid", async () => {
-      const result = await api
+      const response = await api
         .delete("/api/blogs/invalidId")
         .set("Authorization", `Bearer ${token}`)
         .expect(400);
 
-      assert(result.body.error.includes("malformatted id"));
+      assert(response.body.error.includes("malformatted id"));
     });
 
     test("fails with status code 401 if token is missing", async () => {
       const blogsAtStart = await helper.blogsInDb();
       const blogToDelete = blogsAtStart[0];
 
-      const result = await api
+      const response = await api
         .delete(`/api/blogs/${blogToDelete.id}`)
         .expect(401);
 
-      assert(result.body.error.includes("token missing or invalid"));
+      assert(response.body.error.includes("token missing or invalid"));
     });
 
     test("fails with status code 401 if token is invalid", async () => {
       const blogsAtStart = await helper.blogsInDb();
       const blogToDelete = blogsAtStart[0];
 
-      const result = await api
+      const response = await api
         .delete(`/api/blogs/${blogToDelete.id}`)
         .set("Authorization", `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.`)
         .expect(401);
 
-      assert(result.body.error.includes("token missing or invalid"));
+      assert(response.body.error.includes("token missing or invalid"));
     });
 
     test("fails with status code 401 if token is expired", async () => {
@@ -257,18 +266,17 @@ describe("when there is initially an user and some blogs saved", () => {
 
       await new Promise((res, rej) => setTimeout(res, 1100));
 
-      const result = await api
+      const response = await api
         .delete(`/api/blogs/${blogToDelete.id}`)
         .set("Authorization", `Bearer ${shortLivedToken}`)
         .expect(401);
 
-      assert(result.body.error.includes("token expired"));
+      assert(response.body.error.includes("token expired"));
     });
   });
 
-  //npm run test -- --test-name-pattern="updating a blog" tests/blog_api.test.js
   describe("updating a blog", () => {
-    test("with a valid id increases the likes and returns status 200 with json content", async () => {
+    test("with a valid id increases the likes and returns status 200", async () => {
       const blogsAtStart = await helper.blogsInDb();
       const blogToUpdate = blogsAtStart[0];
 
@@ -325,21 +333,23 @@ describe("when there is initially an user and some blogs saved", () => {
       const blogsAtStart = await helper.blogsInDb();
       const blogToUpdate = blogsAtStart[0];
 
-      const result = await api.put(`/api/blogs/${blogToUpdate.id}`).expect(401);
+      const response = await api
+        .put(`/api/blogs/${blogToUpdate.id}`)
+        .expect(401);
 
-      assert(result.body.error.includes("token missing or invalid"));
+      assert(response.body.error.includes("token missing or invalid"));
     });
 
     test("fails with status code 401 if token is invalid", async () => {
       const blogsAtStart = await helper.blogsInDb();
       const blogToUpdate = blogsAtStart[0];
 
-      const result = await api
+      const response = await api
         .put(`/api/blogs/${blogToUpdate.id}`)
         .set("Authorization", `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.`)
         .expect(401);
 
-      assert(result.body.error.includes("token missing or invalid"));
+      assert(response.body.error.includes("token missing or invalid"));
     });
 
     test("fails with status code 401 if token is expired", async () => {
@@ -356,12 +366,314 @@ describe("when there is initially an user and some blogs saved", () => {
 
       await new Promise((res, rej) => setTimeout(res, 1100));
 
-      const result = await api
+      const response = await api
         .put(`/api/blogs/${blogToUpdate.id}`)
         .set("Authorization", `Bearer ${shortLivedToken}`)
         .expect(401);
 
-      assert(result.body.error.includes("token expired"));
+      assert(response.body.error.includes("token expired"));
+    });
+  });
+
+  // TODO / CONTINUE
+  // npm run test -- --test-name-pattern="comments" tests/blog_api.test.js
+  describe("blog comments", () => {
+    describe("adding a comment", () => {
+      test("succeeds with status 200 if token is valid", async () => {
+        const blogsAtStart = await helper.blogsInDb();
+        const blogToAddComment = blogsAtStart[0];
+
+        const comment = {
+          text: "test comment",
+        };
+
+        await api
+          .post(`/api/blogs/${blogToAddComment.id}/comments`)
+          .set("Authorization", `Bearer ${token}`)
+          .send(comment)
+          .expect(200)
+          .expect("Content-Type", /application\/json/);
+
+        const blogsAtEnd = await helper.blogsInDb();
+        const blogWithAddedComment = blogsAtEnd.find(
+          (blog) => blog.id === blogToAddComment.id
+        );
+
+        assert(
+          blogWithAddedComment.comments.length,
+          blogToAddComment.comments.length + 1
+        );
+      });
+
+      test("fails with status code 404 if id does not exist", async () => {
+        const validNonexistingId = await helper.nonExistingId();
+        await api
+          .post(`/api/blogs/${validNonexistingId}/comments`)
+          .set("Authorization", `Bearer ${token}`)
+          .expect(404);
+      });
+
+      test("fails with status code 401 if token is missing", async () => {
+        const blogsAtStart = await helper.blogsInDb();
+        blogToAddComment = blogsAtStart[0];
+
+        const comment = {
+          text: "test comment",
+        };
+
+        const response = await api
+          .post(`/api/blogs/${blogToAddComment.id}/comments`)
+          .send(comment)
+          .expect(401);
+
+        assert(response.body.error.includes("token missing or invalid"));
+      });
+
+      test("fails with status code 401 if token is invalid", async () => {
+        const blogsAtStart = await helper.blogsInDb();
+        blogToAddComment = blogsAtStart[0];
+
+        const comment = {
+          text: "test comment",
+        };
+
+        const response = await api
+          .post(`/api/blogs/${blogsAtStart.id}/comments`)
+          .set("Authorization", `dsihjff342834m8439`)
+          .send(comment)
+          .expect(401);
+
+        assert(response.body.error.includes("token missing or invalid"));
+      });
+
+      test("fails with status code 401 if token is expired", async () => {
+        const blogsAtStart = await helper.blogsInDb();
+        blogToAddComment = blogsAtStart[0];
+
+        const comment = {
+          text: "test comment",
+        };
+
+        const shortLivedToken = helper.generateTokenFor(
+          {
+            username: "bloguser",
+            _id: userId,
+          },
+          { expiresIn: "1s" }
+        );
+
+        await new Promise((res, rej) => setTimeout(res, 1100));
+
+        const response = await api
+          .post(`/api/blogs/${blogToAddComment.id}/comments`)
+          .set("Authorization", `Bearer ${shortLivedToken}`)
+          .send(comment)
+          .expect(401);
+
+        assert(response.body.error.includes("token expired"));
+      });
+    });
+
+    describe("deleting a comment", () => {
+      test("succeeds with status 204 if token is valid", async () => {
+        const blogsAtStart = await helper.blogsInDb();
+        const blogToDeleteCommentFrom = blogsAtStart[0];
+        const commentToDelete = blogToDeleteCommentFrom.comments[0];
+
+        await api
+          .delete(
+            `/api/blogs/${blogToDeleteCommentFrom.id}/${commentToDelete.id}`
+          )
+          .set("Authorization", `Bearer ${token}`)
+          .expect(204);
+
+        const blogsAtEnd = await helper.blogsInDb();
+        const blogWithDeletedComment = blogsAtEnd.find(
+          (blog) => blog.id === blogToDeleteCommentFrom.id
+        );
+
+        assert(
+          blogWithDeletedComment.comments.length,
+          blogToDeleteCommentFrom.comments.length - 1
+        );
+      });
+
+      test("fails with status code 404 if ids do not exist", async () => {
+        const validNonexistingBlogId = await helper.nonExistingId();
+        const validNonexistingCommentId = await helper.nonExistingId();
+
+        await api
+          .delete(
+            `/api/blogs/${validNonexistingBlogId}/${validNonexistingCommentId}`
+          )
+          .set("Authorization", `Bearer ${token}`)
+          .expect(404);
+      });
+
+      test("fails with status code 401 if token is missing", async () => {
+        const blogsAtStart = await helper.blogsInDb();
+        const blogToDeleteCommentFrom = blogsAtStart[0];
+        const commentToDelete = blogToDeleteCommentFrom.comments[0];
+
+        const response = await api
+          .delete(
+            `/api/blogs/${blogToDeleteCommentFrom.id}/${commentToDelete.id}`
+          )
+          .expect(401);
+
+        assert(response.body.error.includes("token missing or invalid"));
+      });
+
+      test("fails with status code 401 if token is invalid", async () => {
+        const blogsAtStart = await helper.blogsInDb();
+        const blogToDeleteCommentFrom = blogsAtStart[0];
+        const commentToDelete = blogToDeleteCommentFrom.comments[0];
+
+        const response = await api
+          .delete(
+            `/api/blogs/${blogToDeleteCommentFrom.id}/${commentToDelete.id}`
+          )
+          .set("Authorization", `dsihjff342834m8439`)
+          .expect(401);
+
+        assert(response.body.error.includes("token missing or invalid"));
+      });
+
+      test("fails with status code 401 if token is expired", async () => {
+        const blogsAtStart = await helper.blogsInDb();
+        const blogToDeleteCommentFrom = blogsAtStart[0];
+        const commentToDelete = blogToDeleteCommentFrom.comments[0];
+
+        const shortLivedToken = helper.generateTokenFor(
+          {
+            username: "bloguser",
+            _id: userId,
+          },
+          { expiresIn: "1s" }
+        );
+
+        await new Promise((res, rej) => setTimeout(res, 1100));
+
+        const response = await api
+          .delete(
+            `/api/blogs/${blogToDeleteCommentFrom.id}/${commentToDelete.id}`
+          )
+          .set("Authorization", `Bearer ${shortLivedToken}`)
+          .expect(401);
+
+        assert(response.body.error.includes("token expired"));
+      });
+    });
+
+    describe("editing a comment", () => {
+      test("succeeds with status 200 if token is valid", async () => {
+        const blogsAtStart = await helper.blogsInDb();
+        const blogToEditCommentFrom = blogsAtStart[0];
+        const commentToEdit = blogToEditCommentFrom.comments[0];
+
+        const updatedText = {
+          text: "new test text",
+        };
+
+        await api
+          .put(`/api/blogs/${blogToEditCommentFrom.id}/${commentToEdit.id}`)
+          .send(updatedText)
+          .set("Authorization", `Bearer ${token}`)
+          .expect(200);
+
+        const blogsAtEnd = await helper.blogsInDb();
+        const blogWithEditedComment = blogsAtEnd.find(
+          (blog) => blog.id === blogToEditCommentFrom.id
+        );
+
+        assert(
+          blogWithEditedComment.comments
+            .map((comment) => comment.text)
+            .includes("new test text")
+        );
+      });
+
+      test("fails with status code 400 is text property is missing from payload", async () => {
+        const blogsAtStart = await helper.blogsInDb();
+        const blogToEditCommentFrom = blogsAtStart[0];
+        const commentToEdit = blogToEditCommentFrom.comments[0];
+
+        const notAComment = {
+          randomProp: "randomValue",
+        };
+
+        const response = await api
+          .put(`/api/blogs/${blogToEditCommentFrom.id}/${commentToEdit.id}`)
+          .set("Authorization", `Bearer ${token}`)
+          .send(notAComment)
+          .expect(400);
+
+        assert(
+          response.body.error.includes(
+            "Blog validation failed: comments.0.text: Path `text` is required."
+          )
+        );
+      });
+
+      test("fails with status code 404 if ids do not exist", async () => {
+        const validNonexistingBlogId = await helper.nonExistingId();
+        const validNonexistingCommentId = await helper.nonExistingId();
+
+        await api
+          .put(
+            `/api/blogs/${validNonexistingBlogId}/${validNonexistingCommentId}`
+          )
+          .set("Authorization", `Bearer ${token}`)
+          .expect(404);
+      });
+
+      test("fails with status code 401 if token is missing", async () => {
+        const blogsAtStart = await helper.blogsInDb();
+        const blogToEditCommentFrom = blogsAtStart[0];
+        const commentToEdit = blogToEditCommentFrom.comments[0];
+
+        const response = await api
+          .put(`/api/blogs/${blogToEditCommentFrom.id}/${commentToEdit.id}`)
+          .expect(401);
+
+        assert(response.body.error.includes("token missing or invalid"));
+      });
+
+      test("fails with status code 401 if token is invalid", async () => {
+        const blogsAtStart = await helper.blogsInDb();
+        const blogToEditCommentFrom = blogsAtStart[0];
+        const commentToEdit = blogToEditCommentFrom.comments[0];
+
+        const response = await api
+          .put(`/api/blogs/${blogToEditCommentFrom.id}/${commentToEdit.id}`)
+          .set("Authorization", `dsihjff342834m8439`)
+          .expect(401);
+
+        assert(response.body.error.includes("token missing or invalid"));
+      });
+
+      test("fails with status code 401 if token is expired", async () => {
+        const blogsAtStart = await helper.blogsInDb();
+        const blogToEditCommentFrom = blogsAtStart[0];
+        const commentToEdit = blogToEditCommentFrom.comments[0];
+
+        const shortLivedToken = helper.generateTokenFor(
+          {
+            username: "bloguser",
+            _id: userId,
+          },
+          { expiresIn: "1s" }
+        );
+
+        await new Promise((res, rej) => setTimeout(res, 1100));
+
+        const response = await api
+          .put(`/api/blogs/${blogToEditCommentFrom.id}/${commentToEdit.id}`)
+          .set("Authorization", `Bearer ${shortLivedToken}`)
+          .expect(401);
+
+        assert(response.body.error.includes("token expired"));
+      });
     });
   });
 });
@@ -407,13 +719,13 @@ describe("when there is initially an user saved in db", () => {
       password: "goodpass01!",
     };
 
-    const result = await api
+    const response = await api
       .post("/api/users")
       .send(user)
       .expect(400)
       .expect("Content-Type", /application\/json/);
 
-    assert(result.body.error.includes("expected `username` to be unique"));
+    assert(response.body.error.includes("expected `username` to be unique"));
 
     const usersAtEnd = await helper.usersInDb();
     assert.strictEqual(usersAtEnd.length, usersAtStart.length);
@@ -427,14 +739,16 @@ describe("when there is initially an user saved in db", () => {
       password: "goodpass01!",
     };
 
-    const result = await api
+    const response = await api
       .post("/api/users")
       .send(user)
       .expect(400)
       .expect("Content-Type", /application\/json/);
 
     assert(
-      result.body.error.includes("username must be at least 3 characters long")
+      response.body.error.includes(
+        "username must be at least 3 characters long"
+      )
     );
 
     const usersAtEnd = await helper.usersInDb();
@@ -448,13 +762,13 @@ describe("when there is initially an user saved in db", () => {
       password: "goodpass01!",
     };
 
-    const result = await api
+    const response = await api
       .post("/api/users")
       .send(user)
       .expect(400)
       .expect("Content-Type", /application\/json/);
 
-    assert(result.body.error.includes("username is required"));
+    assert(response.body.error.includes("username is required"));
 
     const usersAtEnd = await helper.usersInDb();
     assert.strictEqual(usersAtEnd.length, usersAtStart.length);
@@ -467,14 +781,14 @@ describe("when there is initially an user saved in db", () => {
       username: "gooduser1",
     };
 
-    const result = await api
+    const response = await api
       .post("/api/users")
       .send(user)
       .expect(400)
       .expect("Content-Type", /application\/json/);
 
     assert(
-      result.body.error.includes(
+      response.body.error.includes(
         "please enter a password that is at least 3 characters long"
       )
     );
@@ -491,14 +805,14 @@ describe("when there is initially an user saved in db", () => {
       password: "z",
     };
 
-    const result = await api
+    const response = await api
       .post("/api/users")
       .send(user)
       .expect(400)
       .expect("Content-Type", /application\/json/);
 
     assert(
-      result.body.error.includes(
+      response.body.error.includes(
         "please enter a password that is at least 3 characters long"
       )
     );
