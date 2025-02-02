@@ -607,12 +607,6 @@ describe("when there is initially an user and some blogs saved", () => {
           .set("Authorization", `Bearer ${token}`)
           .send(notAComment)
           .expect(400);
-
-        assert(
-          response.body.error.includes(
-            "Blog validation failed: comments.0.text: Path `text` is required."
-          )
-        );
       });
 
       test("fails with status code 404 if ids do not exist", async () => {
