@@ -672,18 +672,7 @@ describe("when there is initially an user and some blogs saved", () => {
   });
 });
 
-describe("when there is initially an user saved in db", () => {
-  beforeEach(async () => {
-    await User.deleteMany({});
-
-    const user = new User({
-      username: "root_root",
-      passwordHash: await bcrypt.hash("sekret", 10),
-    });
-
-    await user.save();
-  });
-
+describe("users => one user is already created", () => {
   test("another user creation succeeds with valid data", async () => {
     const usersAtStart = await helper.usersInDb();
 
@@ -709,7 +698,7 @@ describe("when there is initially an user saved in db", () => {
     const usersAtStart = await helper.usersInDb();
 
     const user = {
-      username: "root_root",
+      username: "bloguser",
       password: "goodpass01!",
     };
 
